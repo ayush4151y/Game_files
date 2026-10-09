@@ -30,23 +30,18 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # The ubuntu runner already ships the Android SDK, so use it directly
-      # instead of android-actions/setup-android (which breaks on Node 24).
-      - name: Diagnose Android SDK
-        if: always()
-        run: |
-          for v in ANDROID_HOME ANDROID_SDK_ROOT JAVA_HOME; do
-            echo "::error::$v=${!v:-unset}"
-          done
-          echo "::error::which sdkmanager: $(command -v sdkmanager || echo none)"
-          for d in /usr/local/lib/android/sdk "$HOME/Android/Sdk" /opt/android-sdk /usr/lib/android-sdk; do
-            if [ -d "$d" ]; then echo "::error::exists: $d"; ls "$d" | while read l; do echo "::error::  - $l"; done; else echo "::error::missing: $d"; fi
-          done
-
+      # The ubuntu runner already ships the Android SDK, but its cmdline-tools
+      # are not on PATH, so call sdkmanager where it lives (and skip
+      # android-actions/setup-android, which breaks on Node 24).
       - name: Install Android SDK packages
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          sdkmanager --version
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$SDKMGR" --version
+          yes | "$SDKMGR" --licenses > /dev/null
+          "$SDKMGR" --install \
+            "platform-tools" \
+            "platforms;android-35" "build-tools;35.0.0" \
+            "platforms;android-36" "build-tools;36.0.0"
 
       - name: Cache Godot and export templates
         id: godot-cache
