@@ -19,6 +19,8 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -113,3 +115,16 @@ jobs:
           path: ${{ env.PROJECT_DIR }}/build/the-lost-route.apk
           if-no-files-found: error
           retention-days: 30
+
+      # Artifacts need a login to download; a release asset is a plain public
+      # link, which is what makes phone-side QA painless.
+      - name: Publish APK to the rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view test-ads-apk > /dev/null 2>&1 ||
+            gh release create test-ads-apk \
+              --title "Test-ads APK" \
+              --notes "AdMob test build from $GITHUB_SHA"
+          gh release upload test-ads-apk \
+            "$PROJECT_DIR/build/the-lost-route.apk" --clobber
